@@ -21,11 +21,11 @@ public class JDBCExample extends AbstractVerticle {
   public void start() throws Exception {
 
     final JDBCClient client = JDBCClient.createShared(vertx, new JsonObject()
-        .put("url", "jdbc:hsqldb:mem:test?shutdown=true")
-        .put("driver_class", "org.hsqldb.jdbcDriver")
-        .put("max_pool_size", 30)
-        .put("user", "SA")
-        .put("password", ""));
+      .put("url", "jdbc:hive2://atscale731:11111/")
+      .put("driver_class", "org.apache.hive.jdbc.HiveDriver")
+      .put("max_pool_size", 5)
+      .put("user", "admin")
+      .put("password", "admin"));
 
     client.getConnection(conn -> {
       if (conn.failed()) {
@@ -33,35 +33,29 @@ public class JDBCExample extends AbstractVerticle {
         return;
       }
 
-      final SQLConnection connection = conn.result();
-      connection.execute("create table test(id int primary key, name varchar(255))", res -> {
-        if (res.failed()) {
-          throw new RuntimeException(res.cause());
-        }
-        // insert some test data
-        connection.execute("insert into test values (1, 'Hello'), (2, 'Goodbye'), (3, 'Cya Later')", insert -> {
-          // query some data
-          connection.queryStream("select * from test", stream -> {
-            if (stream.succeeded()) {
-              SQLRowStream sqlRowStream = stream.result();
+      // Not asynchronous way but just looping
+      for (int i = 0; i < 40; i++) {
+        final SQLConnection connection = conn.result();
+        connection.queryStream("SELECT Gender, SUM(orderquantity1) AS q FROM `Sales Insights`.`Internet Sales Cube` GROUP BY Gender", stream -> {
+          if (stream.succeeded()) {
+            SQLRowStream sqlRowStream = stream.result();
 
-              sqlRowStream
-                .handler(row -> {
-                  // do something with the row...
-                  System.out.println(row.encode());
-                })
-                .endHandler(v -> {
-                  // no more data available, close the connection
-                  connection.close(done -> {
-                    if (done.failed()) {
-                      throw new RuntimeException(done.cause());
-                    }
-                  });
+            sqlRowStream
+              .handler(row -> {
+                // do something with the row...
+                System.out.println(row.encode());
+              })
+              .endHandler(v -> {
+                // no more data available, close the connection
+                connection.close(done -> {
+                  if (done.failed()) {
+                    throw new RuntimeException(done.cause());
+                  }
                 });
-            }
-          });
+              });
+          }
         });
-      });
+      }
     });
   }
 }
