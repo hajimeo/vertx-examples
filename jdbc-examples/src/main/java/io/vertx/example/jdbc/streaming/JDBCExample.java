@@ -1,7 +1,9 @@
 package io.vertx.example.jdbc.streaming;
 
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.json.JsonArray;
 import io.vertx.example.util.Runner;
 import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.sql.SQLConnection;
@@ -10,6 +12,8 @@ import io.vertx.ext.sql.SQLRowStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 
 /*
  * @author <a href="mailto:pmlopes@gmail.com">Paulo Lopes</a>
@@ -28,7 +32,7 @@ public class JDBCExample extends AbstractVerticle {
     final JDBCClient client = JDBCClient.createShared(vertx, new JsonObject()
       .put("url", "jdbc:hive2://atscale731:11111/")
       .put("driver_class", "org.apache.hive.jdbc.HiveDriver")
-      .put("max_pool_size", 10)
+      .put("max_pool_size", 20)
       .put("user", "admin")
       .put("password", "admin"));
 
@@ -46,12 +50,14 @@ public class JDBCExample extends AbstractVerticle {
         connection.queryStream("SELECT Gender, SUM(orderquantity1) AS q FROM `Sales Insights`.`Internet Sales Cube` GROUP BY Gender", stream -> {
           if (stream.succeeded()) {
             System.err.println("[" + dateFormat.format(new Date()) + "] stream Success! " + s);
+            //List<JsonArray> rows = new ArrayList<JsonArray>();
             SQLRowStream sqlRowStream = stream.result();
 
             sqlRowStream
               .handler(row -> {
                 // do something with the row...
                 System.out.println(row.toString());
+                //rows.add(row);
               })
               .endHandler(v -> {
                 // no more data available, close the connection
@@ -59,8 +65,10 @@ public class JDBCExample extends AbstractVerticle {
                   if (done.failed()) {
                     throw new RuntimeException(done.cause());
                   }
+                  System.err.println("[" + dateFormat.format(new Date()) + "] close Success! " + s);
                 });
               });
+            //System.out.println(Json.encode(rows));
           } else {
             System.err.println("[" + dateFormat.format(new Date()) + "] stream Failed! " + s);
           }
