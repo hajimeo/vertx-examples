@@ -71,6 +71,12 @@ public class JDBCExample extends AbstractVerticle {
             //System.out.println(Json.encode(rows));
           } else {
             System.err.println("[" + dateFormat.format(new Date()) + "] stream Failed! " + s);
+            connection.close(done -> {
+              if (done.failed()) {
+                throw new RuntimeException(done.cause());
+              }
+              System.err.println("[" + dateFormat.format(new Date()) + "] close Success! " + s);
+            });
           }
         });
       });
